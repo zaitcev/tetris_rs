@@ -32,17 +32,27 @@ struct DisplayOne<'a> {
 }
 
 pub trait Display {
+    fn Flush(&mut self);
     fn Erase(&mut self);
+    fn Message(&mut self, msg: &str);
 }
 
 impl<'a> Display for DisplayOne<'a> {
+    fn Flush(&mut self) {
+        self.DP.flush().unwrap();
+    }
     fn Erase(&mut self) {
         let s = format!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
         self.DP.write(s.as_bytes()).unwrap();
     }
+    fn Message(&mut self, msg: &str) {
+        let s = format!("{}{}", termion::cursor::Goto(1, 1), msg);
+        self.DP.write(s.as_bytes()).unwrap();
+    }
 }
 
-fn main() -> ExitCode {
+// This basically exists in order to drop termion's RawTerminal restorer.
+fn game() -> ExitCode {
 
     let mut stdout = stdout().into_raw_mode().unwrap();
     let stdin = stdin();
@@ -60,7 +70,7 @@ fn main() -> ExitCode {
     };
     dp.Erase();
 
-    stdout.flush().unwrap();
+    dp.Flush();
     for c in stdin.keys() {
         match c.unwrap() {
             Key::Ctrl('q') => {
@@ -70,19 +80,26 @@ fn main() -> ExitCode {
                 break;
             }
             Key::Left => {
-                stdout.write(b"<").unwrap();
+                dp.Message("<");
             }
             Key::Right => {
-                stdout.write(b">").unwrap();
+                dp.Message(">");
             }
             _ => {}
         }
-        stdout.flush().unwrap();
+        dp.Flush();
     }
+    dp.Flush();
 
-    // XXX Restore terminal to cooked before printing this.
-    println!("Goodbye\r");
     ExitCode::from(0)
+}
+
+fn main() -> ExitCode {
+
+    let ec = game();
+
+    println!("Goodbye");
+    ec
 }
 
 //
@@ -92,14 +109,4 @@ fn main() -> ExitCode {
 //            x: size.0 as usize,
 //            y: size.1 as usize,
 //        },
-//    }
-
-//    fn set_pos(&mut self, x: usize, y: usize) {
-//        self.cur_pos.x = x;
-//        self.cur_pos.y = y;
-//        println!(
-//            "{}",
-//            termion::cursor::Goto(
-//                self.cur_pos.x as u16, (self.cur_pos.y) as u16)
-//        );
 //    }
