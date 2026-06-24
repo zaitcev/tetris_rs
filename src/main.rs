@@ -12,42 +12,35 @@ const COLS: usize = 10;
 struct Can {
     cols: i32,
     rows: i32,
-    Matrix: Vec<Vec<bool>>,
+    matrix: Vec<Vec<bool>>,
 }
 
 struct DisplayOne<'a> {
     // This looks exactly like a Can but represents what is displayed
     // at present.
-    Matrix: Vec<Vec<bool>>,
-    // DP: RawTerminal, // error
-    // DP: &Write, // error: expected a type, found a trait
-    //             // you can add the `dyn` keyword if you want a trait object
-    // DP: &dyn Write,  // error: expected named lifetime parameter
-    // DP: &mut Write,  // error: expected named lifetime parameter
-    // DP: &mut dyn Write,  // error: expected named lifetime parameter
-    // DP: &'a Write,   // error: expected a type, found a trait
-    // DP: &'a dyn Write, // error later: self.DP ^ cannot borrow as mutable
-    // DP: &'a mut dyn Write, // error later: DP: &stdout types differ in mutability
-    DP: &'a mut dyn Write,
+    matrix: Vec<Vec<bool>>,
+    dp: &'a mut dyn Write,
 }
 
 pub trait Display {
-    fn Flush(&mut self);
-    fn Erase(&mut self);
-    fn Message(&mut self, msg: &str);
+    fn flush(&mut self);
+    fn erase(&mut self);
+    fn message(&mut self, msg: &str);
 }
 
 impl<'a> Display for DisplayOne<'a> {
-    fn Flush(&mut self) {
-        self.DP.flush().unwrap();
+    fn flush(&mut self) {
+        self.dp.flush().unwrap();
     }
-    fn Erase(&mut self) {
+    fn erase(&mut self) {
         let s = format!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
-        self.DP.write(s.as_bytes()).unwrap();
+        self.dp.write(s.as_bytes()).unwrap();
+
+
     }
-    fn Message(&mut self, msg: &str) {
+    fn message(&mut self, msg: &str) {
         let s = format!("{}{}", termion::cursor::Goto(1, 1), msg);
-        self.DP.write(s.as_bytes()).unwrap();
+        self.dp.write(s.as_bytes()).unwrap();
     }
 }
 
@@ -62,15 +55,15 @@ fn game() -> ExitCode {
     // let mut can = Can {
     //     cols: COLS,
     //     rows: ROWS,
-    //     Matrix: field,
+    //     matrix: field,
     // };
     let mut dp = DisplayOne {
-        Matrix: vec![vec![false; COLS]; ROWS],
-        DP: &mut stdout,
+        matrix: vec![vec![false; COLS]; ROWS],
+        dp: &mut stdout,
     };
-    dp.Erase();
+    dp.erase();
 
-    dp.Flush();
+    dp.flush();
     for c in stdin.keys() {
         match c.unwrap() {
             Key::Ctrl('q') => {
@@ -80,16 +73,16 @@ fn game() -> ExitCode {
                 break;
             }
             Key::Left => {
-                dp.Message("<");
+                dp.message("<");
             }
             Key::Right => {
-                dp.Message(">");
+                dp.message(">");
             }
             _ => {}
         }
-        dp.Flush();
+        dp.flush();
     }
-    dp.Flush();
+    dp.flush();
 
     ExitCode::from(0)
 }
