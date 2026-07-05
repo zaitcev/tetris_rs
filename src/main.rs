@@ -8,6 +8,8 @@ use termion::raw::IntoRawMode;
 
 const ROWS: usize = 20;
 const COLS: usize = 10;
+const TROFF: usize = 1;
+const TCOFF: usize = 5;
 
 struct Can {
     cols: i32,
@@ -33,10 +35,20 @@ impl<'a> Display for DisplayOne<'a> {
         self.dp.flush().unwrap();
     }
     fn erase(&mut self) {
-        let s = format!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
+        let s = format!("{}", termion::clear::All);
         self.dp.write(s.as_bytes()).unwrap();
 
-
+        for i in 0..ROWS {
+            let s = format!("{}", termion::cursor::Goto(
+                    (TCOFF+1) as u16, (TROFF+i+1) as u16));
+            self.dp.write(s.as_bytes()).unwrap();
+            for _ in 0..COLS {
+                let s = " . ";
+                self.dp.write(s.as_bytes()).unwrap();
+            }
+        }
+        let s = format!("{}", termion::cursor::Goto(1, 1));
+        self.dp.write(s.as_bytes()).unwrap();
     }
     fn message(&mut self, msg: &str) {
         let s = format!("{}{}", termion::cursor::Goto(1, 1), msg);
@@ -82,6 +94,8 @@ fn game() -> ExitCode {
         }
         dp.flush();
     }
+    let s = format!("{}", termion::cursor::Goto(1, (TROFF+ROWS+1) as u16));
+    dp.dp.write(s.as_bytes()).unwrap();
     dp.flush();
 
     ExitCode::from(0)
