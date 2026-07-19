@@ -41,11 +41,11 @@ enum GenericFigure {
 impl BarFigure {
     fn new(cols: u16, rows: u16) -> BarFigure {
         BarFigure {
-            pos: Point{col: cols/2, row: rows/2},
+            pos: Point{col: cols/2 - 1, row: rows-1},
             points: [
-                Point{col: cols/2 - 1, row: rows/2},
-                Point{col: cols/2 + 1, row: rows/2},
-                Point{col: cols/2 + 2, row: rows/2},
+                Point{col: cols/2 - 2, row: rows-1},
+                Point{col: cols/2 + 0, row: rows-1},
+                Point{col: cols/2 + 1, row: rows-1},
             ]
         }
     }
@@ -137,7 +137,7 @@ impl<'a> Display for DisplayOne<'a> {
             self.dp.write(s.as_bytes()).unwrap();
             // XXX optimize
             for j in 0..COLS {
-                if field[i][j] {
+                if field[ROWS-1-i][j] {
                     let s = "[_]";
                     self.dp.write(s.as_bytes()).unwrap();
                 } else {
