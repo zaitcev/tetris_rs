@@ -11,7 +11,6 @@ const COLS: usize = 10;
 const TROFF: usize = 1;
 const TCOFF: usize = 5;
 
-// #[derive(Copy, Clone)]
 #[derive(Copy)]
 struct Point {
     col: u16,
@@ -24,8 +23,19 @@ impl Clone for Point {
     }
 }
 
+struct Can {
+    cols: usize,
+    rows: usize,
+    matrix: Vec<Vec<bool>>,
+}
+
+// impl Can {
+//     xxxx
+// }
+
 pub trait Figure {
     fn land(&self, rv: &mut [Point; 4]);
+    fn down1(&mut self, can: &Can) -> bool;
 }
 
 struct BarFigure {
@@ -58,6 +68,24 @@ impl Figure for BarFigure {
         rv[2] = self.points[1];
         rv[3] = self.points[2];
     }
+
+    // XXX This is fully generic, where to put this?
+    fn down1(&mut self, can: &Can) -> bool {
+        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+        self.land(&mut points);
+        for i in 0..4 {
+            if points[i].row == 0 {
+                ret = false;
+                break;
+            }
+            col1 = points[i].col;
+            row1 = points[i].row - 1;
+            if can.matrix[row1][col1] {
+                ret = false;
+                break
+            }
+        }
+    }
 }
 
 impl Figure for GenericFigure {
@@ -72,12 +100,6 @@ impl Figure for GenericFigure {
 fn new_figure(fig: &mut GenericFigure, cols: u16, rows: u16) {
     let bar = BarFigure::new(cols, rows);
     *fig = GenericFigure::Bar(bar);
-}
-
-struct Can {
-    cols: usize,
-    rows: usize,
-    matrix: Vec<Vec<bool>>,
 }
 
 struct DisplayOne<'a> {
@@ -124,7 +146,11 @@ impl<'a> Display for DisplayOne<'a> {
         curfig.land(&mut points);
 
         let mut field = vec![vec![false; COLS]; ROWS];
-        // XXX smash with can
+        for i in 0..ROWS {
+            for j in 0..COLS {
+                field[i][j] = can.matrix[i][j];
+            }
+        }
 
         for i in 0..4 {
             let p = points[i];
@@ -186,6 +212,11 @@ fn game() -> ExitCode {
             }
             Key::Right => {
                 dp.message(">");
+            }
+            Key::Down => {
+                if curfig.down1(&can) {
+                    dp.update(&can, &curfig);
+                }
             }
             _ => {}
         }
