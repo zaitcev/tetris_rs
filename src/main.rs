@@ -11,7 +11,6 @@ const COLS: usize = 10;
 const TROFF: usize = 1;
 const TCOFF: usize = 5;
 
-// #[derive(Copy, Clone)]
 #[derive(Copy)]
 struct Point {
     col: u16,
@@ -24,8 +23,19 @@ impl Clone for Point {
     }
 }
 
+struct Can {
+    cols: usize,
+    rows: usize,
+    matrix: Vec<Vec<bool>>,
+}
+
+// impl Can {
+//     xxxx
+// }
+
 pub trait Figure {
     fn land(&self, rv: &mut [Point; 4]);
+    fn down1(&mut self, can: &Can) -> bool;
 }
 
 struct BarFigure {
@@ -58,6 +68,49 @@ impl Figure for BarFigure {
         rv[2] = self.points[1];
         rv[3] = self.points[2];
     }
+
+    // XXX This is fully generic, where to put this?
+    fn down1(&mut self, can: &Can) -> bool {
+
+        // Step 1: check
+        // XXX This is generic, good for facoring
+
+        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+
+        // Less Rust-like, but let's try it anyway
+        let mut ret: bool = true;
+        // More Rust-like
+        // let mut ret = true;
+
+        self.land(&mut points);
+        for i in 0..4 {
+            if points[i].row == 0 {
+                ret = false;
+                break;
+            }
+            // i as usize
+            // usize::from(i)
+            // trait TryFrom
+            // (i).into()
+            let col1 = usize::from(points[i].col);
+            let row1 = usize::from(points[i].row - 1);
+            if can.matrix[row1][col1] {
+                ret = false;
+                break
+            }
+        }
+
+        // Step 2: move
+
+        if ret {
+            self.pos.row -= 1;
+            for i in 0..self.points.len() {
+                self.points[i].row -= 1;
+            }
+        }
+
+        ret
+    }
 }
 
 impl Figure for GenericFigure {
@@ -67,17 +120,17 @@ impl Figure for GenericFigure {
             _ => panic!("trying to land a None figure"),
         }
     }
+    fn down1(&mut self, can: &Can) -> bool {
+        match self {
+            GenericFigure::Bar(f) => f.down1(can),
+            _ => panic!("trying to invoke down1 on a None figure"),
+        }
+    }
 }
 
 fn new_figure(fig: &mut GenericFigure, cols: u16, rows: u16) {
     let bar = BarFigure::new(cols, rows);
     *fig = GenericFigure::Bar(bar);
-}
-
-struct Can {
-    cols: usize,
-    rows: usize,
-    matrix: Vec<Vec<bool>>,
 }
 
 struct DisplayOne<'a> {
@@ -124,7 +177,11 @@ impl<'a> Display for DisplayOne<'a> {
         curfig.land(&mut points);
 
         let mut field = vec![vec![false; COLS]; ROWS];
-        // XXX smash with can
+        for i in 0..ROWS {
+            for j in 0..COLS {
+                field[i][j] = can.matrix[i][j];
+            }
+        }
 
         for i in 0..4 {
             let p = points[i];
@@ -186,6 +243,11 @@ fn game() -> ExitCode {
             }
             Key::Right => {
                 dp.message(">");
+            }
+            Key::Down => {
+                if curfig.down1(&can) {
+                    dp.update(&can, &curfig);
+                }
             }
             _ => {}
         }
