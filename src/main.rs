@@ -29,13 +29,22 @@ struct Can {
     matrix: Vec<Vec<bool>>,
 }
 
-// impl Can {
-//     xxxx
-// }
-
 pub trait Figure {
     fn land(&self, rv: &mut [Point; 4]);
     fn down1(&mut self, can: &Can) -> bool;
+}
+
+impl Can {
+    // Imprint the fig into the can
+    fn ground(&mut self, fig: &dyn Figure) {
+        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+        fig.land(&mut points);
+        for i in 0..points.len() {
+            let col = usize::from(points[i].col);
+            let row = usize::from(points[i].row);
+            self.matrix[row][col] = true;
+        }
+    }
 }
 
 struct BarFigure {
@@ -83,7 +92,7 @@ impl Figure for BarFigure {
         // let mut ret = true;
 
         self.land(&mut points);
-        for i in 0..4 {
+        for i in 0..points.len() {
             if points[i].row == 0 {
                 ret = false;
                 break;
@@ -246,6 +255,10 @@ fn game() -> ExitCode {
             }
             Key::Down => {
                 if curfig.down1(&can) {
+                    dp.update(&can, &curfig);
+                } else {
+                    can.ground(&curfig);
+                    new_figure(&mut curfig, COLS as u16, ROWS as u16);
                     dp.update(&can, &curfig);
                 }
             }
