@@ -30,8 +30,11 @@ struct Can {
 }
 
 pub trait Figure {
+    // XXX rename land() into snap()
     fn land(&self, rv: &mut [Point; 4]);
     fn down1(&mut self, can: &Can) -> bool;
+    fn left1(&mut self, can: &Can) -> bool;
+    fn right1(&mut self, can: &Can) -> bool;
 }
 
 impl Can {
@@ -78,7 +81,6 @@ impl Figure for BarFigure {
         rv[3] = self.points[2];
     }
 
-    // XXX This is fully generic, where to put this?
     fn down1(&mut self, can: &Can) -> bool {
 
         // Step 1: check
@@ -120,6 +122,49 @@ impl Figure for BarFigure {
 
         ret
     }
+
+    fn left1(&mut self, can: &Can) -> bool {
+
+        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+        self.land(&mut points);
+        for i in 0..points.len() {
+            if points[i].col == 0 {
+                return false;
+            }
+            let col1 = usize::from(points[i].col - 1);
+            let row1 = usize::from(points[i].row);
+            if can.matrix[row1][col1] {
+                return false;
+            }
+        }
+
+        self.pos.col -= 1;
+        for i in 0..self.points.len() {
+            self.points[i].col -= 1;
+        }
+
+        true
+    }
+
+    fn right1(&mut self, can: &Can) -> bool {
+
+        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+        self.land(&mut points);
+        for i in 0..points.len() {
+            let col1 = usize::from(points[i].col + 1);
+            let row1 = usize::from(points[i].row);
+            if col1 >= can.cols || can.matrix[row1][col1] {
+                return false;
+            }
+        }
+
+        self.pos.col += 1;
+        for i in 0..self.points.len() {
+            self.points[i].col += 1;
+        }
+
+        true
+    }
 }
 
 impl Figure for GenericFigure {
@@ -133,6 +178,18 @@ impl Figure for GenericFigure {
         match self {
             GenericFigure::Bar(f) => f.down1(can),
             _ => panic!("trying to invoke down1 on a None figure"),
+        }
+    }
+    fn left1(&mut self, can: &Can) -> bool {
+        match self {
+            GenericFigure::Bar(f) => f.left1(can),
+            _ => panic!("trying to invoke left1 on a None figure"),
+        }
+    }
+    fn right1(&mut self, can: &Can) -> bool {
+        match self {
+            GenericFigure::Bar(f) => f.right1(can),
+            _ => panic!("trying to invoke right1 on a None figure"),
         }
     }
 }
@@ -249,9 +306,15 @@ fn game() -> ExitCode {
             }
             Key::Left => {
                 dp.message("<");
+                if curfig.left1(&can) {
+                    dp.update(&can, &curfig);
+                }
             }
             Key::Right => {
                 dp.message(">");
+                if curfig.right1(&can) {
+                    dp.update(&can, &curfig);
+                }
             }
             Key::Down => {
                 if curfig.down1(&can) {
