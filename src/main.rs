@@ -6,10 +6,10 @@ use termion::event::Key;
 use termion::input::TermRead; // provides keys()
 use termion::raw::IntoRawMode;
 
-const ROWS: usize = 20;
-const COLS: usize = 10;
-const TROFF: usize = 1;
-const TCOFF: usize = 5;
+const ROWS: u16 = 20;
+const COLS: u16 = 10;
+const TROFF: u16 = 1;
+const TCOFF: u16 = 5;
 
 #[derive(Copy)]
 struct Point {
@@ -24,14 +24,13 @@ impl Clone for Point {
 }
 
 struct Can {
-    cols: usize,
-    rows: usize,
+    cols: u16,
+    rows: u16,
     matrix: Vec<Vec<bool>>,
 }
 
 pub trait Figure {
-    // XXX rename land() into snap()
-    fn land(&self, rv: &mut [Point; 4]);
+    fn snap(&self, rv: &mut [Point; 4]);
     fn down1(&mut self, can: &Can) -> bool;
     fn left1(&mut self, can: &Can) -> bool;
     fn right1(&mut self, can: &Can) -> bool;
@@ -39,9 +38,9 @@ pub trait Figure {
 
 impl Can {
     // Imprint the fig into the can
-    fn ground(&mut self, fig: &dyn Figure) {
+    fn imprint(&mut self, fig: &dyn Figure) {
         let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
-        fig.land(&mut points);
+        fig.snap(&mut points);
         for i in 0..points.len() {
             let col = usize::from(points[i].col);
             let row = usize::from(points[i].row);
@@ -74,7 +73,7 @@ impl BarFigure {
 }
 
 impl Figure for BarFigure {
-    fn land(&self, rv: &mut [Point; 4]) {
+    fn snap(&self, rv: &mut [Point; 4]) {
         rv[0] = self.pos;
         rv[1] = self.points[0];
         rv[2] = self.points[1];
@@ -93,7 +92,7 @@ impl Figure for BarFigure {
         // More Rust-like
         // let mut ret = true;
 
-        self.land(&mut points);
+        self.snap(&mut points);
         for i in 0..points.len() {
             if points[i].row == 0 {
                 ret = false;
@@ -126,7 +125,7 @@ impl Figure for BarFigure {
     fn left1(&mut self, can: &Can) -> bool {
 
         let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
-        self.land(&mut points);
+        self.snap(&mut points);
         for i in 0..points.len() {
             if points[i].col == 0 {
                 return false;
@@ -149,11 +148,14 @@ impl Figure for BarFigure {
     fn right1(&mut self, can: &Can) -> bool {
 
         let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
-        self.land(&mut points);
+        self.snap(&mut points);
         for i in 0..points.len() {
+            if points[i].col + 1 >= can.cols {
+                return false;
+            }
             let col1 = usize::from(points[i].col + 1);
             let row1 = usize::from(points[i].row);
-            if col1 >= can.cols || can.matrix[row1][col1] {
+            if can.matrix[row1][col1] {
                 return false;
             }
         }
@@ -168,10 +170,10 @@ impl Figure for BarFigure {
 }
 
 impl Figure for GenericFigure {
-    fn land(&self, rv: &mut [Point; 4]) {
+    fn snap(&self, rv: &mut [Point; 4]) {
         match self {
-            GenericFigure::Bar(f) => f.land(rv),
-            _ => panic!("trying to land a None figure"),
+            GenericFigure::Bar(f) => f.snap(rv),
+            _ => panic!("trying to snap a None figure"),
         }
     }
     fn down1(&mut self, can: &Can) -> bool {
@@ -222,8 +224,7 @@ impl<'a> Display for DisplayOne<'a> {
         self.dp.write(s.as_bytes()).unwrap();
 
         for i in 0..ROWS {
-            let s = format!("{}", termion::cursor::Goto(
-                    (TCOFF+1) as u16, (TROFF+i+1) as u16));
+            let s = format!("{}", termion::cursor::Goto(TCOFF+1, TROFF+i+1));
             self.dp.write(s.as_bytes()).unwrap();
             for _ in 0..COLS {
                 let s = " . ";
@@ -240,11 +241,11 @@ impl<'a> Display for DisplayOne<'a> {
     fn update(&mut self, can: &Can, curfig: &dyn Figure) {
         // XXX Later
         let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
-        curfig.land(&mut points);
+        curfig.snap(&mut points);
 
-        let mut field = vec![vec![false; COLS]; ROWS];
-        for i in 0..ROWS {
-            for j in 0..COLS {
+        let mut field = vec![vec![false; can.cols as usize]; can.rows as usize];
+        for i in 0..(can.rows as usize) {
+            for j in 0..(can.cols as usize) {
                 field[i][j] = can.matrix[i][j];
             }
         }
@@ -254,13 +255,12 @@ impl<'a> Display for DisplayOne<'a> {
             field[p.row as usize][p.col as usize] = true;
         }
 
-        for i in 0..ROWS {
-            let s = format!("{}", termion::cursor::Goto(
-                    (TCOFF+1) as u16, (TROFF+i+1) as u16));
+        for i in 0..can.rows {
+            let s = format!("{}", termion::cursor::Goto(TCOFF+1, TROFF+i+1));
             self.dp.write(s.as_bytes()).unwrap();
             // XXX optimize
-            for j in 0..COLS {
-                if field[ROWS-1-i][j] {
+            for j in 0..can.cols {
+                if field[(can.rows-1-i) as usize][j as usize] {
                     let s = "[_]";
                     self.dp.write(s.as_bytes()).unwrap();
                 } else {
@@ -279,20 +279,20 @@ fn game() -> ExitCode {
     let stdin = stdin();
 
     // let mut field: Vec<Vec<bool>> = Vec::new();
-    let mut field = vec![vec![false; COLS]; ROWS];
+    let field = vec![vec![false; COLS as usize]; ROWS as usize];
     let mut can = Can {
         cols: COLS,
         rows: ROWS,
         matrix: field,
     };
     let mut dp = DisplayOne {
-        matrix: vec![vec![false; COLS]; ROWS],
+        matrix: vec![vec![false; COLS as usize]; ROWS as usize],
         dp: &mut stdout,
     };
     dp.erase();
 
     let mut curfig = GenericFigure::None;
-    new_figure(&mut curfig, COLS as u16, ROWS as u16);
+    new_figure(&mut curfig, can.cols, can.rows);
     dp.update(&can, &curfig);
 
     dp.flush();
@@ -320,8 +320,9 @@ fn game() -> ExitCode {
                 if curfig.down1(&can) {
                     dp.update(&can, &curfig);
                 } else {
-                    can.ground(&curfig);
-                    new_figure(&mut curfig, COLS as u16, ROWS as u16);
+                    can.imprint(&curfig);
+                    new_figure(&mut curfig, can.cols, can.rows);
+                    // XXX check for game-over against the can
                     dp.update(&can, &curfig);
                 }
             }
@@ -329,7 +330,7 @@ fn game() -> ExitCode {
         }
         dp.flush();
     }
-    let s = format!("{}", termion::cursor::Goto(1, (TROFF+ROWS+1) as u16));
+    let s = format!("{}", termion::cursor::Goto(1, TROFF+ROWS+1));
     dp.dp.write(s.as_bytes()).unwrap();
     dp.flush();
 
