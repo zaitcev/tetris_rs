@@ -12,7 +12,7 @@ const TROFF: u16 = 1;
 const TCOFF: u16 = 5;
 
 #[derive(Copy)]
-struct Point {
+pub struct Point {
     col: u16,
     row: u16,
 }
@@ -23,7 +23,7 @@ impl Clone for Point {
     }
 }
 
-struct Can {
+pub struct Can {
     cols: u16,
     rows: u16,
     matrix: Vec<Vec<bool>>,
@@ -38,6 +38,7 @@ pub trait Figure {
 
 impl Can {
     // Imprint the fig into the can
+    // This is usually done before disposing of the figure.
     fn imprint(&mut self, fig: &dyn Figure) {
         let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
         fig.snap(&mut points);
@@ -52,11 +53,6 @@ impl Can {
 struct BarFigure {
     pos: Point,
     points: [Point; 3],
-}
-
-enum GenericFigure {
-    None,
-    Bar(BarFigure),
 }
 
 impl BarFigure {
@@ -169,36 +165,10 @@ impl Figure for BarFigure {
     }
 }
 
-impl Figure for GenericFigure {
-    fn snap(&self, rv: &mut [Point; 4]) {
-        match self {
-            GenericFigure::Bar(f) => f.snap(rv),
-            _ => panic!("trying to snap a None figure"),
-        }
-    }
-    fn down1(&mut self, can: &Can) -> bool {
-        match self {
-            GenericFigure::Bar(f) => f.down1(can),
-            _ => panic!("trying to invoke down1 on a None figure"),
-        }
-    }
-    fn left1(&mut self, can: &Can) -> bool {
-        match self {
-            GenericFigure::Bar(f) => f.left1(can),
-            _ => panic!("trying to invoke left1 on a None figure"),
-        }
-    }
-    fn right1(&mut self, can: &Can) -> bool {
-        match self {
-            GenericFigure::Bar(f) => f.right1(can),
-            _ => panic!("trying to invoke right1 on a None figure"),
-        }
-    }
-}
-
-fn new_figure(fig: &mut GenericFigure, cols: u16, rows: u16) {
+fn new_figure(cols: u16, rows: u16) -> Box<dyn Figure> {
     let bar = BarFigure::new(cols, rows);
-    *fig = GenericFigure::Bar(bar);
+    let fig = Box::new(bar);
+    fig
 }
 
 struct DisplayOne<'a> {
@@ -291,9 +261,8 @@ fn game() -> ExitCode {
     };
     dp.erase();
 
-    let mut curfig = GenericFigure::None;
-    new_figure(&mut curfig, can.cols, can.rows);
-    dp.update(&can, &curfig);
+    let mut curfig = new_figure(can.cols, can.rows);
+    dp.update(&can, &*curfig);
 
     dp.flush();
     for c in stdin.keys() {
@@ -307,23 +276,23 @@ fn game() -> ExitCode {
             Key::Left => {
                 dp.message("<");
                 if curfig.left1(&can) {
-                    dp.update(&can, &curfig);
+                    dp.update(&can, &*curfig);
                 }
             }
             Key::Right => {
                 dp.message(">");
                 if curfig.right1(&can) {
-                    dp.update(&can, &curfig);
+                    dp.update(&can, &*curfig);
                 }
             }
             Key::Down => {
                 if curfig.down1(&can) {
-                    dp.update(&can, &curfig);
+                    dp.update(&can, &*curfig);
                 } else {
-                    can.imprint(&curfig);
-                    new_figure(&mut curfig, can.cols, can.rows);
+                    can.imprint(&*curfig);
+                    curfig = new_figure(can.cols, can.rows);
                     // XXX check for game-over against the can
-                    dp.update(&can, &curfig);
+                    dp.update(&can, &*curfig);
                 }
             }
             _ => {}
