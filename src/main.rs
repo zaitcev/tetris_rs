@@ -174,7 +174,7 @@ fn new_figure(cols: u16, rows: u16) -> Box<dyn Figure> {
 struct DisplayOne<'a> {
     // This looks exactly like a Can but represents what is displayed
     // at present.
-    matrix: Vec<Vec<bool>>, // XXX needed to optimize
+    matrix: Vec<Vec<bool>>,
     dp: &'a mut dyn Write,
 }
 
@@ -196,9 +196,10 @@ impl<'a> Display for DisplayOne<'a> {
         for i in 0..ROWS {
             let s = format!("{}", termion::cursor::Goto(TCOFF+1, TROFF+i+1));
             self.dp.write(s.as_bytes()).unwrap();
-            for _ in 0..COLS {
+            for j in 0..COLS {
                 let s = " . ";
                 self.dp.write(s.as_bytes()).unwrap();
+                self.matrix[(ROWS-1-i) as usize][j as usize] = false;
             }
         }
         let s = format!("{}", termion::cursor::Goto(1, 1));
@@ -230,19 +231,36 @@ impl<'a> Display for DisplayOne<'a> {
         }
 
         for i in 0..can.rows {
-            let s = format!("{}", termion::cursor::Goto(TCOFF+1, TROFF+i+1));
-            self.dp.write(s.as_bytes()).unwrap();
-            // XXX optimize
+            let row: usize = (can.rows-1-i) as usize;
+
+            let mut changed = false;
             for j in 0..can.cols {
-                if field[(can.rows-1-i) as usize][j as usize] {
-                    let s = "[_]";
-                    self.dp.write(s.as_bytes()).unwrap();
-                } else {
-                    let s = " . ";
-                    self.dp.write(s.as_bytes()).unwrap();
+                if field[row][j as usize] != self.matrix[row][j as usize] {
+                    changed = true;
+                    break;
+                }
+            }
+            if changed {
+
+                let s = format!("{}", termion::cursor::Goto(TCOFF+1, TROFF+i+1));
+                self.dp.write(s.as_bytes()).unwrap();
+                for j in 0..can.cols {
+                    if field[row][j as usize] {
+                        let s = "[_]";
+                        self.dp.write(s.as_bytes()).unwrap();
+                    } else {
+                        let s = " . ";
+                        self.dp.write(s.as_bytes()).unwrap();
+                    }
+                    self.matrix[row][j as usize] = field[row][j as usize]
                 }
             }
         }
+
+        // It's not beautiful if we leave cursor linger along
+        // the right side of the can.
+        let s = format!("{}", termion::cursor::Goto(1, 1));
+        self.dp.write(s.as_bytes()).unwrap();
     }
 }
 
@@ -336,12 +354,3 @@ fn main() -> ExitCode {
     println!("Goodbye");
     ec
 }
-
-//
-//    let size = termion::terminal_size().unwrap();
-//    Self {
-//        terminal_size: Coordinates {
-//            x: size.0 as usize,
-//            y: size.1 as usize,
-//        },
-//    }
