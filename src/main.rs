@@ -55,6 +55,11 @@ struct BarFigure {
     points: [Point; 3],
 }
 
+struct TeeFigure {
+    pos: Point,
+    points: [Point; 3],
+}
+
 impl BarFigure {
     fn new(cols: u16, rows: u16) -> BarFigure {
         BarFigure {
@@ -68,7 +73,117 @@ impl BarFigure {
     }
 }
 
+impl TeeFigure {
+    fn new(cols: u16, rows: u16) -> TeeFigure {
+        TeeFigure {
+            pos: Point{col: cols/2, row: rows-1},
+            points: [
+                Point{col: cols/2 - 1, row: rows-1},
+                Point{col: cols/2 + 1, row: rows-1},
+                Point{col: cols/2, row: rows-2},
+            ]
+        }
+    }
+}
+
 impl Figure for BarFigure {
+    fn snap(&self, rv: &mut [Point; 4]) {
+        rv[0] = self.pos;
+        rv[1] = self.points[0];
+        rv[2] = self.points[1];
+        rv[3] = self.points[2];
+    }
+
+    fn down1(&mut self, can: &Can) -> bool {
+
+        // Step 1: check
+        // XXX This is generic, good for facoring
+
+        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+
+        // Less Rust-like, but let's try it anyway
+        let mut ret: bool = true;
+        // More Rust-like
+        // let mut ret = true;
+
+        self.snap(&mut points);
+        for i in 0..points.len() {
+            if points[i].row == 0 {
+                ret = false;
+                break;
+            }
+            // i as usize
+            // usize::from(i)
+            // trait TryFrom
+            // (i).into()
+            let col1 = usize::from(points[i].col);
+            let row1 = usize::from(points[i].row - 1);
+            if can.matrix[row1][col1] {
+                ret = false;
+                break
+            }
+        }
+
+        // Step 2: move
+
+        if ret {
+            self.pos.row -= 1;
+            for i in 0..self.points.len() {
+                self.points[i].row -= 1;
+            }
+        }
+
+        ret
+    }
+
+    fn left1(&mut self, can: &Can) -> bool {
+
+        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+        self.snap(&mut points);
+        for i in 0..points.len() {
+            if points[i].col == 0 {
+                return false;
+            }
+            let col1 = usize::from(points[i].col - 1);
+            let row1 = usize::from(points[i].row);
+            if can.matrix[row1][col1] {
+                return false;
+            }
+        }
+
+        self.pos.col -= 1;
+        for i in 0..self.points.len() {
+            self.points[i].col -= 1;
+        }
+
+        true
+    }
+
+    fn right1(&mut self, can: &Can) -> bool {
+
+        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+        self.snap(&mut points);
+        for i in 0..points.len() {
+            if points[i].col + 1 >= can.cols {
+                return false;
+            }
+            let col1 = usize::from(points[i].col + 1);
+            let row1 = usize::from(points[i].row);
+            if can.matrix[row1][col1] {
+                return false;
+            }
+        }
+
+        self.pos.col += 1;
+        for i in 0..self.points.len() {
+            self.points[i].col += 1;
+        }
+
+        true
+    }
+}
+
+impl Figure for TeeFigure {
     fn snap(&self, rv: &mut [Point; 4]) {
         rv[0] = self.pos;
         rv[1] = self.points[0];
