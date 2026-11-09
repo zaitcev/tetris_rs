@@ -174,7 +174,7 @@ fn new_figure(cols: u16, rows: u16) -> Box<dyn Figure> {
 struct DisplayOne<'a> {
     // This looks exactly like a Can but represents what is displayed
     // at present.
-    matrix: Vec<Vec<bool>>,
+    matrix: Vec<Vec<bool>>, // XXX needed to optimize
     dp: &'a mut dyn Write,
 }
 
@@ -209,7 +209,11 @@ impl<'a> Display for DisplayOne<'a> {
         self.dp.write(s.as_bytes()).unwrap();
     }
     fn update(&mut self, can: &Can, curfig: &dyn Figure) {
-        // XXX Later
+        // Seems weirdly inefficient to create a whole new field,
+        // just to merge the (potentially conflicting) figure on
+        // top of the can, and then update the display with the
+        // merged field. But what else is out there?
+
         let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
         curfig.snap(&mut points);
 
@@ -240,6 +244,22 @@ impl<'a> Display for DisplayOne<'a> {
             }
         }
     }
+}
+
+fn is_conflict(can: &Can, curfig: &dyn Figure) -> bool {
+
+    let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+    curfig.snap(&mut points);
+
+    let mut conflict = false;
+    for i in 0..4 {
+        let p = points[i];
+        if can.matrix[p.row as usize][p.col as usize] {
+            conflict = true;
+        }
+    }
+
+    conflict
 }
 
 // This basically exists in order to drop termion's RawTerminal restorer.
@@ -291,8 +311,11 @@ fn game() -> ExitCode {
                 } else {
                     can.imprint(&*curfig);
                     curfig = new_figure(can.cols, can.rows);
-                    // XXX check for game-over against the can
                     dp.update(&can, &*curfig);
+                    if is_conflict(&can, &*curfig) {
+                        dp.message("Game Over");
+                        break;
+                    }
                 }
             }
             _ => {}
