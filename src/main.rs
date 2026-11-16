@@ -116,6 +116,38 @@ fn check_down(can: &Can, fig: &dyn Figure) -> bool {
     ret
 }
 
+fn check_left(can: &Can, fig: &dyn Figure) -> bool {
+    let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+    fig.snap(&mut points);
+    for i in 0..points.len() {
+        if points[i].col == 0 {
+            return false;
+        }
+        let col1 = usize::from(points[i].col - 1);
+        let row1 = usize::from(points[i].row);
+        if can.matrix[row1][col1] {
+            return false;
+        }
+    }
+    true
+}
+
+fn check_right(can: &Can, fig: &dyn Figure) -> bool {
+    let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+    fig.snap(&mut points);
+    for i in 0..points.len() {
+        if points[i].col + 1 >= can.cols {
+            return false;
+        }
+        let col1 = usize::from(points[i].col + 1);
+        let row1 = usize::from(points[i].row);
+        if can.matrix[row1][col1] {
+            return false;
+        }
+    }
+    true
+}
+
 impl Figure for BarFigure {
     fn snap(&self, rv: &mut [Point; 4]) {
         rv[0] = self.pos;
@@ -136,49 +168,25 @@ impl Figure for BarFigure {
     }
 
     fn left1(&mut self, can: &Can) -> bool {
-
-        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
-        self.snap(&mut points);
-        for i in 0..points.len() {
-            if points[i].col == 0 {
-                return false;
-            }
-            let col1 = usize::from(points[i].col - 1);
-            let row1 = usize::from(points[i].row);
-            if can.matrix[row1][col1] {
-                return false;
+        let ret = check_left(can, self);
+        if ret {
+            self.pos.col -= 1;
+            for i in 0..self.points.len() {
+                self.points[i].col -= 1;
             }
         }
-
-        self.pos.col -= 1;
-        for i in 0..self.points.len() {
-            self.points[i].col -= 1;
-        }
-
-        true
+        ret
     }
 
     fn right1(&mut self, can: &Can) -> bool {
-
-        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
-        self.snap(&mut points);
-        for i in 0..points.len() {
-            if points[i].col + 1 >= can.cols {
-                return false;
-            }
-            let col1 = usize::from(points[i].col + 1);
-            let row1 = usize::from(points[i].row);
-            if can.matrix[row1][col1] {
-                return false;
+        let ret = check_right(can, self);
+        if ret {
+            self.pos.col += 1;
+            for i in 0..self.points.len() {
+                self.points[i].col += 1;
             }
         }
-
-        self.pos.col += 1;
-        for i in 0..self.points.len() {
-            self.points[i].col += 1;
-        }
-
-        true
+        ret
     }
 }
 
@@ -202,49 +210,25 @@ impl Figure for TeeFigure {
     }
 
     fn left1(&mut self, can: &Can) -> bool {
-
-        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
-        self.snap(&mut points);
-        for i in 0..points.len() {
-            if points[i].col == 0 {
-                return false;
-            }
-            let col1 = usize::from(points[i].col - 1);
-            let row1 = usize::from(points[i].row);
-            if can.matrix[row1][col1] {
-                return false;
+        let ret = check_left(can, self);
+        if ret {
+            self.pos.col -= 1;
+            for i in 0..self.points.len() {
+                self.points[i].col -= 1;
             }
         }
-
-        self.pos.col -= 1;
-        for i in 0..self.points.len() {
-            self.points[i].col -= 1;
-        }
-
-        true
+        ret
     }
 
     fn right1(&mut self, can: &Can) -> bool {
-
-        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
-        self.snap(&mut points);
-        for i in 0..points.len() {
-            if points[i].col + 1 >= can.cols {
-                return false;
-            }
-            let col1 = usize::from(points[i].col + 1);
-            let row1 = usize::from(points[i].row);
-            if can.matrix[row1][col1] {
-                return false;
+        let ret = check_right(can, self);
+        if ret {
+            self.pos.col += 1;
+            for i in 0..self.points.len() {
+                self.points[i].col += 1;
             }
         }
-
-        self.pos.col += 1;
-        for i in 0..self.points.len() {
-            self.points[i].col += 1;
-        }
-
-        true
+        ret
     }
 }
 
