@@ -86,6 +86,36 @@ impl TeeFigure {
     }
 }
 
+fn check_down(can: &Can, fig: &dyn Figure) -> bool {
+
+    let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
+
+    // Less Rust-like, but let's try it anyway
+    let mut ret: bool = true;
+    // More Rust-like
+    // let mut ret = true;
+
+    fig.snap(&mut points);
+    for i in 0..points.len() {
+        if points[i].row == 0 {
+            ret = false;
+            break;
+        }
+        // i as usize
+        // usize::from(i)
+        // trait TryFrom
+        // (i).into()
+        let col1 = usize::from(points[i].col);
+        let row1 = usize::from(points[i].row - 1);
+        if can.matrix[row1][col1] {
+            ret = false;
+            break
+        }
+    }
+
+    ret
+}
+
 impl Figure for BarFigure {
     fn snap(&self, rv: &mut [Point; 4]) {
         rv[0] = self.pos;
@@ -95,44 +125,13 @@ impl Figure for BarFigure {
     }
 
     fn down1(&mut self, can: &Can) -> bool {
-
-        // Step 1: check
-        // XXX This is generic, good for facoring
-
-        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
-
-        // Less Rust-like, but let's try it anyway
-        let mut ret: bool = true;
-        // More Rust-like
-        // let mut ret = true;
-
-        self.snap(&mut points);
-        for i in 0..points.len() {
-            if points[i].row == 0 {
-                ret = false;
-                break;
-            }
-            // i as usize
-            // usize::from(i)
-            // trait TryFrom
-            // (i).into()
-            let col1 = usize::from(points[i].col);
-            let row1 = usize::from(points[i].row - 1);
-            if can.matrix[row1][col1] {
-                ret = false;
-                break
-            }
-        }
-
-        // Step 2: move
-
+        let ret = check_down(can, self);
         if ret {
             self.pos.row -= 1;
             for i in 0..self.points.len() {
                 self.points[i].row -= 1;
             }
         }
-
         ret
     }
 
@@ -192,44 +191,13 @@ impl Figure for TeeFigure {
     }
 
     fn down1(&mut self, can: &Can) -> bool {
-
-        // Step 1: check
-        // XXX This is generic, good for facoring
-
-        let mut points: [Point; 4] = [Point{col:0,row:0}; 4];
-
-        // Less Rust-like, but let's try it anyway
-        let mut ret: bool = true;
-        // More Rust-like
-        // let mut ret = true;
-
-        self.snap(&mut points);
-        for i in 0..points.len() {
-            if points[i].row == 0 {
-                ret = false;
-                break;
-            }
-            // i as usize
-            // usize::from(i)
-            // trait TryFrom
-            // (i).into()
-            let col1 = usize::from(points[i].col);
-            let row1 = usize::from(points[i].row - 1);
-            if can.matrix[row1][col1] {
-                ret = false;
-                break
-            }
-        }
-
-        // Step 2: move
-
+        let ret = check_down(can, self);
         if ret {
             self.pos.row -= 1;
             for i in 0..self.points.len() {
                 self.points[i].row -= 1;
             }
         }
-
         ret
     }
 
