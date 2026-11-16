@@ -1,4 +1,4 @@
-// use std::io;
+use rand::{Rng, RngExt};
 // use std::io::Read;  // the trait Read provides read_exact
 use std::io::{stdin, stdout, Write};
 use std::process::ExitCode;
@@ -280,9 +280,16 @@ impl Figure for TeeFigure {
     }
 }
 
-fn new_figure(cols: u16, rows: u16) -> Box<dyn Figure> {
-    let bar = BarFigure::new(cols, rows);
-    let fig = Box::new(bar);
+fn new_figure<R: Rng>(rng: &mut R, cols: u16, rows: u16) -> Box<dyn Figure> {
+    let n = rng.random_range(0..2);
+    let fig: Box<dyn Figure>;
+    if n == 0 {
+        let bar = BarFigure::new(cols, rows);
+        fig = Box::new(bar);
+    } else {
+        let tee = TeeFigure::new(cols, rows);
+        fig = Box::new(tee);
+    }
     fig
 }
 
@@ -401,6 +408,8 @@ fn game() -> ExitCode {
     let mut stdout = stdout().into_raw_mode().unwrap();
     let stdin = stdin();
 
+    let mut rng = rand::rng();
+
     // let mut field: Vec<Vec<bool>> = Vec::new();
     let field = vec![vec![false; COLS as usize]; ROWS as usize];
     let mut can = Can {
@@ -414,7 +423,7 @@ fn game() -> ExitCode {
     };
     dp.erase();
 
-    let mut curfig = new_figure(can.cols, can.rows);
+    let mut curfig = new_figure(&mut rng, can.cols, can.rows);
     dp.update(&can, &*curfig);
 
     dp.flush();
@@ -443,7 +452,7 @@ fn game() -> ExitCode {
                     dp.update(&can, &*curfig);
                 } else {
                     can.imprint(&*curfig);
-                    curfig = new_figure(can.cols, can.rows);
+                    curfig = new_figure(&mut rng, can.cols, can.rows);
                     dp.update(&can, &*curfig);
                     if is_conflict(&can, &*curfig) {
                         dp.message("Game Over");
