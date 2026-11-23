@@ -23,6 +23,12 @@ impl Clone for Point {
     }
 }
 
+// N.B. Keep in mind that the zero of the Y axis is at the bottom.
+pub struct RelPoint {
+    x_off: i16,
+    y_off: i16,
+}
+
 pub struct Can {
     cols: u16,
     rows: u16,
@@ -30,7 +36,10 @@ pub struct Can {
 }
 
 pub trait Figure {
+
+    // A snap() makes a snapshot of the internal representation as an array of points.
     fn snap(&self, rv: &mut [Point; 4]);
+
     fn down1(&mut self, can: &Can) -> bool;
     fn left1(&mut self, can: &Can) -> bool;
     fn right1(&mut self, can: &Can) -> bool;
@@ -52,22 +61,22 @@ impl Can {
 
 struct BarFigure {
     pos: Point,
-    points: [Point; 3],
+    points: [RelPoint; 3],
 }
 
 struct TeeFigure {
     pos: Point,
-    points: [Point; 3],
+    points: [RelPoint; 3],
 }
 
 impl BarFigure {
     fn new(cols: u16, rows: u16) -> BarFigure {
         BarFigure {
-            pos: Point{col: cols/2 - 1, row: rows-1},
+            pos: Point{col: cols/2 - 1, row: rows - 1},
             points: [
-                Point{col: cols/2 - 2, row: rows-1},
-                Point{col: cols/2 + 0, row: rows-1},
-                Point{col: cols/2 + 1, row: rows-1},
+                RelPoint{x_off: -1, y_off: 0},
+                RelPoint{x_off: 1, y_off: 0},
+                RelPoint{x_off: 2, y_off: 0},
             ]
         }
     }
@@ -76,11 +85,11 @@ impl BarFigure {
 impl TeeFigure {
     fn new(cols: u16, rows: u16) -> TeeFigure {
         TeeFigure {
-            pos: Point{col: cols/2, row: rows-1},
+            pos: Point{col: cols/2, row: rows-2},
             points: [
-                Point{col: cols/2 - 1, row: rows-1},
-                Point{col: cols/2 + 1, row: rows-1},
-                Point{col: cols/2, row: rows-2},
+                RelPoint{x_off: -1, y_off: 0},
+                RelPoint{x_off: 0, y_off: 1},
+                RelPoint{x_off: 1, y_off: 0},
             ]
         }
     }
@@ -151,18 +160,17 @@ fn check_right(can: &Can, fig: &dyn Figure) -> bool {
 impl Figure for BarFigure {
     fn snap(&self, rv: &mut [Point; 4]) {
         rv[0] = self.pos;
-        rv[1] = self.points[0];
-        rv[2] = self.points[1];
-        rv[3] = self.points[2];
+        for i in 0..3 {
+            let pt_col = (self.pos.col as i16) + self.points[i].x_off;
+            let pt_row = (self.pos.row as i16) + self.points[i].y_off;
+            rv[i+1] = Point{col: pt_col as u16, row: pt_row as u16};
+        }
     }
 
     fn down1(&mut self, can: &Can) -> bool {
         let ret = check_down(can, self);
         if ret {
             self.pos.row -= 1;
-            for i in 0..self.points.len() {
-                self.points[i].row -= 1;
-            }
         }
         ret
     }
@@ -171,9 +179,6 @@ impl Figure for BarFigure {
         let ret = check_left(can, self);
         if ret {
             self.pos.col -= 1;
-            for i in 0..self.points.len() {
-                self.points[i].col -= 1;
-            }
         }
         ret
     }
@@ -182,9 +187,6 @@ impl Figure for BarFigure {
         let ret = check_right(can, self);
         if ret {
             self.pos.col += 1;
-            for i in 0..self.points.len() {
-                self.points[i].col += 1;
-            }
         }
         ret
     }
@@ -193,18 +195,17 @@ impl Figure for BarFigure {
 impl Figure for TeeFigure {
     fn snap(&self, rv: &mut [Point; 4]) {
         rv[0] = self.pos;
-        rv[1] = self.points[0];
-        rv[2] = self.points[1];
-        rv[3] = self.points[2];
+        for i in 0..3 {
+            let pt_col = (self.pos.col as i16) + self.points[i].x_off;
+            let pt_row = (self.pos.row as i16) + self.points[i].y_off;
+            rv[i+1] = Point{col: pt_col as u16, row: pt_row as u16};
+        }
     }
 
     fn down1(&mut self, can: &Can) -> bool {
         let ret = check_down(can, self);
         if ret {
             self.pos.row -= 1;
-            for i in 0..self.points.len() {
-                self.points[i].row -= 1;
-            }
         }
         ret
     }
@@ -213,9 +214,6 @@ impl Figure for TeeFigure {
         let ret = check_left(can, self);
         if ret {
             self.pos.col -= 1;
-            for i in 0..self.points.len() {
-                self.points[i].col -= 1;
-            }
         }
         ret
     }
@@ -224,9 +222,6 @@ impl Figure for TeeFigure {
         let ret = check_right(can, self);
         if ret {
             self.pos.col += 1;
-            for i in 0..self.points.len() {
-                self.points[i].col += 1;
-            }
         }
         ret
     }
