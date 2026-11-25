@@ -29,6 +29,14 @@ pub struct RelPoint {
     y_off: i16,
 }
 
+impl Copy for RelPoint { }
+
+impl Clone for RelPoint {
+    fn clone(&self) -> RelPoint {
+        *self
+    }
+}
+
 pub struct Can {
     cols: u16,
     rows: u16,
@@ -43,6 +51,7 @@ pub trait Figure {
     fn down1(&mut self, can: &Can) -> bool;
     fn left1(&mut self, can: &Can) -> bool;
     fn right1(&mut self, can: &Can) -> bool;
+    fn rotate1(&mut self, can: &Can) -> bool;
 }
 
 impl Can {
@@ -190,6 +199,40 @@ impl Figure for BarFigure {
         }
         ret
     }
+
+    fn rotate1(&mut self, can: &Can) -> bool {
+
+        let mut new_pts: [RelPoint; 3] = [RelPoint{x_off:0,y_off:0}; 3];
+
+        // The rotation matrix for -0.5*pi is:
+        //  [col] [  0   1 ]
+        //  [row] [ -1   0 ]
+        for i in 0..3 {
+            new_pts[i] = RelPoint{x_off: self.points[i].y_off,
+                                  y_off: self.points[i].x_off * -1};
+        }
+
+        let mut ret = true;
+        for i in 0..3 {
+            let col1 = (self.pos.col as i16) + new_pts[i].x_off;
+            let row1 = (self.pos.row as i16) + new_pts[i].y_off;
+            if col1 < 0 || col1 >= can.cols as i16 ||
+                row1 < 0 || row1 >= can.rows as i16 ||
+                can.matrix[row1 as usize][col1 as usize]
+            {
+                ret = false;
+                break;
+            }
+        }
+
+        if ret {
+            for i in 0..3 {
+                self.points[i] = new_pts[i];
+            }
+        }
+
+        ret
+    }
 }
 
 impl Figure for TeeFigure {
@@ -223,6 +266,41 @@ impl Figure for TeeFigure {
         if ret {
             self.pos.col += 1;
         }
+        ret
+    }
+
+    // XXX factor the 100% identical function; possibly a common representation
+    fn rotate1(&mut self, can: &Can) -> bool {
+
+        let mut new_pts: [RelPoint; 3] = [RelPoint{x_off:0,y_off:0}; 3];
+
+        // The rotation matrix for -0.5*pi is:
+        //  [col] [  0   1 ]
+        //  [row] [ -1   0 ]
+        for i in 0..3 {
+            new_pts[i] = RelPoint{x_off: self.points[i].y_off,
+                                  y_off: self.points[i].x_off * -1};
+        }
+
+        let mut ret = true;
+        for i in 0..3 {
+            let col1 = (self.pos.col as i16) + new_pts[i].x_off;
+            let row1 = (self.pos.row as i16) + new_pts[i].y_off;
+            if col1 < 0 || col1 >= can.cols as i16 ||
+                row1 < 0 || row1 >= can.rows as i16 ||
+                can.matrix[row1 as usize][col1 as usize]
+            {
+                ret = false;
+                break;
+            }
+        }
+
+        if ret {
+            for i in 0..3 {
+                self.points[i] = new_pts[i];
+            }
+        }
+
         ret
     }
 }
@@ -405,6 +483,12 @@ fn game() -> ExitCode {
                         dp.message("Game Over");
                         break;
                     }
+                }
+            }
+            Key::Up => {
+                dp.message("^");
+                if curfig.rotate1(&can) {
+                    dp.update(&can, &*curfig);
                 }
             }
             _ => {}
