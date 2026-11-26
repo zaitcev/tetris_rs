@@ -166,6 +166,40 @@ fn check_right(can: &Can, fig: &dyn Figure) -> bool {
     true
 }
 
+fn check_rotate(can: &Can, pos: &Point, points: &mut [RelPoint; 3]) -> bool {
+
+    let mut new_pts: [RelPoint; 3] = [RelPoint{x_off:0,y_off:0}; 3];
+
+    // The rotation matrix for -0.5*pi is:
+    //  [col] [  0   1 ]
+    //  [row] [ -1   0 ]
+    for i in 0..3 {
+        new_pts[i] = RelPoint{x_off: points[i].y_off,
+                              y_off: points[i].x_off * -1};
+    }
+
+    let mut ret = true;
+    for i in 0..3 {
+        let col1 = (pos.col as i16) + new_pts[i].x_off;
+        let row1 = (pos.row as i16) + new_pts[i].y_off;
+        if col1 < 0 || col1 >= can.cols as i16 ||
+            row1 < 0 || row1 >= can.rows as i16 ||
+            can.matrix[row1 as usize][col1 as usize]
+        {
+            ret = false;
+            break;
+        }
+    }
+
+    if ret {
+        for i in 0..3 {
+            points[i] = new_pts[i];
+        }
+    }
+
+    ret
+}
+
 impl Figure for BarFigure {
     fn snap(&self, rv: &mut [Point; 4]) {
         rv[0] = self.pos;
@@ -201,36 +235,7 @@ impl Figure for BarFigure {
     }
 
     fn rotate1(&mut self, can: &Can) -> bool {
-
-        let mut new_pts: [RelPoint; 3] = [RelPoint{x_off:0,y_off:0}; 3];
-
-        // The rotation matrix for -0.5*pi is:
-        //  [col] [  0   1 ]
-        //  [row] [ -1   0 ]
-        for i in 0..3 {
-            new_pts[i] = RelPoint{x_off: self.points[i].y_off,
-                                  y_off: self.points[i].x_off * -1};
-        }
-
-        let mut ret = true;
-        for i in 0..3 {
-            let col1 = (self.pos.col as i16) + new_pts[i].x_off;
-            let row1 = (self.pos.row as i16) + new_pts[i].y_off;
-            if col1 < 0 || col1 >= can.cols as i16 ||
-                row1 < 0 || row1 >= can.rows as i16 ||
-                can.matrix[row1 as usize][col1 as usize]
-            {
-                ret = false;
-                break;
-            }
-        }
-
-        if ret {
-            for i in 0..3 {
-                self.points[i] = new_pts[i];
-            }
-        }
-
+        let ret = check_rotate(can, &self.pos, &mut self.points);
         ret
     }
 }
@@ -269,38 +274,8 @@ impl Figure for TeeFigure {
         ret
     }
 
-    // XXX factor the 100% identical function; possibly a common representation
     fn rotate1(&mut self, can: &Can) -> bool {
-
-        let mut new_pts: [RelPoint; 3] = [RelPoint{x_off:0,y_off:0}; 3];
-
-        // The rotation matrix for -0.5*pi is:
-        //  [col] [  0   1 ]
-        //  [row] [ -1   0 ]
-        for i in 0..3 {
-            new_pts[i] = RelPoint{x_off: self.points[i].y_off,
-                                  y_off: self.points[i].x_off * -1};
-        }
-
-        let mut ret = true;
-        for i in 0..3 {
-            let col1 = (self.pos.col as i16) + new_pts[i].x_off;
-            let row1 = (self.pos.row as i16) + new_pts[i].y_off;
-            if col1 < 0 || col1 >= can.cols as i16 ||
-                row1 < 0 || row1 >= can.rows as i16 ||
-                can.matrix[row1 as usize][col1 as usize]
-            {
-                ret = false;
-                break;
-            }
-        }
-
-        if ret {
-            for i in 0..3 {
-                self.points[i] = new_pts[i];
-            }
-        }
-
+        let ret = check_rotate(can, &self.pos, &mut self.points);
         ret
     }
 }
